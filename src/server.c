@@ -875,6 +875,8 @@ static void
 block_list_clear_cb(EV_P_ ev_timer *watcher, int revents)
 {
     clear_block_list();
+    block_list_watcher.repeat = UPDATE_INTERVAL + randombytes_uniform(UPDATE_INTERVAL);
+    ev_timer_again(EV_DEFAULT, &block_list_watcher);
 }
 
 static void
@@ -1679,8 +1681,9 @@ main(int argc, char **argv)
         ev_timer_start(EV_DEFAULT, &stat_update_watcher);
     }
 
-    ev_timer_init(&block_list_watcher, block_list_clear_cb, UPDATE_INTERVAL, UPDATE_INTERVAL);
-    ev_timer_start(EV_DEFAULT, &block_list_watcher);
+    ev_init(&block_list_watcher, block_list_clear_cb);
+    block_list_watcher.repeat = UPDATE_INTERVAL + randombytes_uniform(UPDATE_INTERVAL);
+    ev_timer_again(EV_DEFAULT, &block_list_watcher);
 
     // setuid
     if (user != NULL && !run_as(user)) {
