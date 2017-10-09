@@ -173,7 +173,7 @@ resolv_init(struct ev_loop *loop, char *nameservers, int mode)
     ares_set_socket_callback(default_channel,
                              ares_resolv_sock_cb, NULL);
 
-    ev_timer_init(&default_timer, ares_fd_process_cb, 0.0, 0.0);
+    ev_init(&default_timer, ares_fd_process_cb);
 
     init_resolv_ctxs();
 
@@ -451,16 +451,11 @@ static void
 adjust_fd_process_timer()
 {
     if (current_ctx_num) {
-        if (!ev_is_active(&default_timer)) {
-            ev_timer_set(&default_timer, 1., 1.);
-            ev_timer_start(default_loop, &default_timer);
-        }
+        default_timer.repeat = 1.;
+        ev_timer_again(default_loop, &default_timer);
     } else {
         // stop
-        if (ev_is_active(&default_timer)) {
-            ev_timer_stop(default_loop, &default_timer);
-            ev_timer_set(&default_timer, 0., 0.);
-        }
+        ev_timer_stop(default_loop, &default_timer);
     }
 }
 
