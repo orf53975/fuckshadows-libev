@@ -214,7 +214,6 @@ crypto_init(const char *password, const char *method)
     return NULL;
 }
 
-#ifdef FS_DEBUG
 void
 dump(char *tag, char *text, int len)
 {
@@ -224,5 +223,3 @@ dump(char *tag, char *text, int len)
         printf("0x%02x ", (uint8_t)text[i]);
     printf("\n");
 }
-
-#endif

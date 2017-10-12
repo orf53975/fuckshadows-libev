@@ -812,6 +812,7 @@ aead_decrypt(buffer_t *ciphertext, cipher_ctx_t *cipher_ctx, size_t capacity)
                                  cipher_ctx->nonce,
                                  &chunk_plen, &chunk_clen);
         if (err == CRYPTO_ERROR) {
+            dump("[E] TCP chunk", cipher_ctx->chunk->data, chunk_clen);
             return err;
         } else if (err == CRYPTO_NEED_MORE) {
             if (plen == 0) {
