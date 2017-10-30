@@ -224,6 +224,8 @@ read_jconf(const char *file)
             } else if (strcmp(name, "mode") == 0) {
                 char *mode_str = to_string(value);
 
+                if (mode_str == NULL)
+                    conf.mode = TCP_ONLY;
                 if (strcmp(mode_str, "tcp_only") == 0)
                     conf.mode = TCP_ONLY;
                 else if (strcmp(mode_str, "tcp_and_udp") == 0)
@@ -233,6 +235,7 @@ read_jconf(const char *file)
                 else
                     LOGI("ignore unknown mode: %s, use tcp_only as fallback",
                          mode_str);
+
                 ss_free(mode_str);
             } else if (strcmp(name, "mtu") == 0) {
                 check_json_value_type(value, json_integer,
