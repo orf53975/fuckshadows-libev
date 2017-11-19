@@ -87,5 +87,12 @@
 #define CORK_CONFIG_HAVE_THREAD_STORAGE_CLASS  0
 #endif
 
+/*
+ * Thread-local storage is not available on Android
+ */
+
+#if defined(ANDROID) || defined(__ANDROID__)
+#define CORK_CONFIG_HAVE_THREAD_STORAGE_CLASS  0
+#endif
 
 #endif /* LIBCORK_CONFIG_GCC_H */
