@@ -4,10 +4,17 @@ compiler:
     - clang
 before_install:
     - MBEDTLSVER=mbedtls-2.6.0;
+    - PCRE2_VER=10.30
     - curl -L https://github.com/ARMmbed/mbedtls/archive/$MBEDTLSVER.tar.gz | tar -xzf -;
     - pushd mbedtls-$MBEDTLSVER;
     - cmake $TOOLCHAIN_OPTION -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DCMAKE_INSTALL_PREFIX:PATH=../usr .;
     - make -j3 install;
     - popd;
+    - wget https://ftp.pcre.org/pub/pcre/pcre2-$PCRE2_VER.tar.gz;
+    - tar xvf pcre2-$PCRE2_VER.tar.gz;
+    - pushd pcre2-$PCRE2_VER;
+    - cmake $TOOLCHAIN_OPTION -DBUILD_SHARED_LIBS=ON -DPCRE2_BUILD_PCRE2_16=ON -DPCRE2_BUILD_PCRE2_32=ON -DCMAKE_INSTALL_PREFIX:PATH=../usr .;
+    - make -j3 install;
+    - popd;
     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/usr/lib;
-script: "./autogen.sh && ./configure --with-mbedtls=\"$PWD/usr\" && make"
+script: "./autogen.sh && ./configure --with-mbedtls=\"$PWD/usr\" --with-pcre2=\"$PWD/usr\" && make"
