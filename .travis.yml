@@ -5,12 +5,9 @@ compiler:
 before_install:
     - MBEDTLSVER=mbedtls-2.6.0;
     - curl -L https://github.com/ARMmbed/mbedtls/archive/$MBEDTLSVER.tar.gz | tar -xzf -;
-    - cd mbedtls-$MBEDTLSVER;
+    - pushd mbedtls-$MBEDTLSVER;
     - cmake $TOOLCHAIN_OPTION -DUSE_SHARED_MBEDTLS_LIBRARY=ON -DCMAKE_INSTALL_PREFIX:PATH=../usr .;
     - make -j3 install;
-    - cd ..;
+    - popd;
     - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/usr/lib;
 script: "./autogen.sh && ./configure --with-mbedtls=\"$PWD/usr\" && make"
-branches:
-    only:
-        - master
