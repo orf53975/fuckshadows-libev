@@ -487,31 +487,35 @@ connect_to_remote(EV_P_ struct addrinfo *res,
 
     remote_t *remote = new_remote(sockfd);
 
-#ifdef TCP_FASTOPEN
     if (fast_open) {
-#ifdef __APPLE__
+        int s = -1;
+#if defined(MSG_FASTOPEN) && !defined(TCP_FASTOPEN_CONNECT)
+        s = sendto(sockfd, server->buf->data, server->buf->len,
+                MSG_FASTOPEN, res->ai_addr, res->ai_addrlen);
+#else
+#if defined(TCP_FASTOPEN_CONNECT)
+        int optval = 1;
+        if(setsockopt(sockfd, IPPROTO_TCP, TCP_FASTOPEN_CONNECT,
+                    (void *)&optval, sizeof(optval)) < 0)
+            FATAL("failed to set TCP_FASTOPEN_CONNECT");
+        s = connect(sockfd, res->ai_addr, res->ai_addrlen);
+#elif defined(CONNECT_DATA_IDEMPOTENT)
         ((struct sockaddr_in *)(res->ai_addr))->sin_len = sizeof(struct sockaddr_in);
         sa_endpoints_t endpoints;
         memset((char *)&endpoints, 0, sizeof(endpoints));
         endpoints.sae_dstaddr    = res->ai_addr;
         endpoints.sae_dstaddrlen = res->ai_addrlen;
 
-        struct iovec iov;
-        iov.iov_base = server->buf->data;
-        iov.iov_len  = server->buf->len;
-        size_t len;
-        int s = connectx(sockfd, &endpoints, SAE_ASSOCID_ANY, CONNECT_DATA_IDEMPOTENT,
-                         &iov, 1, &len, NULL);
-        if (s == 0) {
-            s = len;
-        }
+        s = connectx(sockfd, &endpoints, SAE_ASSOCID_ANY, CONNECT_DATA_IDEMPOTENT,
+                         NULL, 0, NULL, NULL);
 #else
-        ssize_t s = sendto(sockfd, server->buf->data, server->buf->len,
-                           MSG_FASTOPEN, res->ai_addr, res->ai_addrlen);
+        FATAL("fast open is not enabled in this build");
+#endif
+        if (s == 0)
+            s = send(sockfd, server->buf->data, server->buf->len, 0);
 #endif
         if (s == -1) {
-            if (errno == CONNECT_IN_PROGRESS || errno == EAGAIN
-                || errno == EWOULDBLOCK) {
+            if (errno == CONNECT_IN_PROGRESS) {
                 // The remote server doesn't support tfo or it's the first connection to the server.
                 // It will automatically fall back to conventional TCP.
             } else if (errno == EOPNOTSUPP || errno == EPROTONOSUPPORT ||
@@ -527,7 +531,6 @@ connect_to_remote(EV_P_ struct addrinfo *res,
             server->buf->len -= s;
         }
     }
-#endif
 
     if (!fast_open) {
         int r = connect(sockfd, res->ai_addr, res->ai_addrlen);
