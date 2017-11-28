@@ -35,6 +35,17 @@
 #include <netdb.h>
 #endif
 
+#if defined(ANDROID) || defined(__ANDROID__)
+/*
+ * workaround Android NDK unified headers, it defines all
+ * symbols that may not match what we actually use.
+ * Disable new API code path explicitly.
+ */
+#ifdef TCP_FASTOPEN_CONNECT
+#undef TCP_FASTOPEN_CONNECT
+#endif
+#endif
+
 /* MPTCP_ENABLED setsockopt values for kernel 4 & 3, best behaviour to be independant of kernel version is to test from newest to the latest values */
 #ifndef MPTCP_ENABLED
 static const char mptcp_enabled_values[] = { 42, 26, 0 };
