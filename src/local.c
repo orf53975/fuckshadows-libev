@@ -409,7 +409,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                             close_and_free_server(EV_A_ server);
                             return;
                         }
-                    } else if (s < (int)(remote->buf->len)) {
+                    } else {
                         remote->buf->len -= s;
                         remote->buf->idx  = s;
 
