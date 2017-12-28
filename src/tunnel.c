@@ -1023,6 +1023,8 @@ main(int argc, char **argv)
     listen_ctx.iface   = iface;
     listen_ctx.mptcp   = mptcp;
 
+    LOGI("listening at %s:%s", local_addr, local_port);
+
     struct ev_loop *loop = EV_DEFAULT;
 
     if (mode != UDP_ONLY) {
@@ -1061,8 +1063,6 @@ main(int argc, char **argv)
     if (mode == UDP_ONLY) {
         LOGI("TCP relay disabled");
     }
-
-    LOGI("listening at %s:%s", local_addr, local_port);
 
     // setuid
     if (user != NULL && !run_as(user)) {

@@ -1629,6 +1629,11 @@ main(int argc, char **argv)
         for (int i = 0; i < server_num; i++) {
             const char *host = server_host[i];
 
+            if (host && strcmp(host, ":") > 0)
+                LOGI("tcp server listening at [%s]:%s", host, server_port);
+            else
+                LOGI("tcp server listening at %s:%s", host ? host : "0.0.0.0", server_port);
+
             // Bind to port
             int listenfd;
             listenfd = create_and_bind(host, server_port, mptcp);
@@ -1650,11 +1655,6 @@ main(int argc, char **argv)
 
             ev_io_init(&listen_ctx->io, accept_cb, listenfd, EV_READ);
             ev_io_start(loop, &listen_ctx->io);
-
-            if (host && strcmp(host, ":") > 0)
-                LOGI("tcp server listening at [%s]:%s", host, server_port);
-            else
-                LOGI("tcp server listening at %s:%s", host ? host : "0.0.0.0", server_port);
         }
     }
 
@@ -1662,12 +1662,12 @@ main(int argc, char **argv)
         for (int i = 0; i < server_num; i++) {
             const char *host = server_host[i];
             const char *port = server_port;
-            // Setup UDP
-            init_udprelay(host, port, mtu, crypto, atoi(timeout), iface);
             if (host && strcmp(host, ":") > 0)
                 LOGI("udp server listening at [%s]:%s", host, port);
             else
                 LOGI("udp server listening at %s:%s", host ? host : "0.0.0.0", port);
+            // Setup UDP
+            init_udprelay(host, port, mtu, crypto, atoi(timeout), iface);
         }
     }
 

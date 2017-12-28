@@ -1129,6 +1129,8 @@ main(int argc, char **argv)
 
     struct ev_loop *loop = EV_DEFAULT;
 
+    LOGI("listening at %s:%s", local_addr, local_port);
+
     if (mode != UDP_ONLY) {
         // Setup socket
         int listenfd;
@@ -1165,8 +1167,6 @@ main(int argc, char **argv)
     if (mode == UDP_ONLY) {
         LOGI("TCP relay disabled");
     }
-
-    LOGI("listening at %s:%s", local_addr, local_port);
 
     // setuid
     if (user != NULL && !run_as(user)) {

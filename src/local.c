@@ -1539,6 +1539,11 @@ main(int argc, char **argv)
     ev_signal_init(&sigchld_watcher, signal_cb, SIGCHLD);
     ev_signal_start(EV_DEFAULT, &sigchld_watcher);
 
+    if (strcmp(local_addr, ":") > 0)
+        LOGI("listening at [%s]:%s", local_addr, local_port);
+    else
+        LOGI("listening at %s:%s", local_addr, local_port);
+
     struct ev_loop *loop = EV_DEFAULT;
 
     if (mode != UDP_ONLY) {
@@ -1583,10 +1588,6 @@ main(int argc, char **argv)
         LOGI("listening through launchd");
     else
 #endif
-    if (strcmp(local_addr, ":") > 0)
-        LOGI("listening at [%s]:%s", local_addr, local_port);
-    else
-        LOGI("listening at %s:%s", local_addr, local_port);
 
     // setuid
     if (user != NULL && !run_as(user)) {
@@ -1701,6 +1702,11 @@ start_ss_local_server(profile_t profile)
     listen_ctx.iface          = NULL;
     listen_ctx.mptcp          = mptcp;
 
+    if (strcmp(local_addr, ":") > 0)
+        LOGI("listening at [%s]:%s", local_addr, local_port_str);
+    else
+        LOGI("listening at %s:%s", local_addr, local_port_str);
+
     if (mode != UDP_ONLY) {
         // Setup socket
         int listenfd;
@@ -1728,11 +1734,6 @@ start_ss_local_server(profile_t profile)
         udp_fd = init_udprelay(local_addr, local_port_str, addr,
                                get_sockaddr_len(addr), mtu, crypto, timeout, NULL);
     }
-
-    if (strcmp(local_addr, ":") > 0)
-        LOGI("listening at [%s]:%s", local_addr, local_port_str);
-    else
-        LOGI("listening at %s:%s", local_addr, local_port_str);
 
     // Init connections
     cork_dllist_init(&connections);
