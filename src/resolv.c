@@ -193,17 +193,12 @@ resolv_shutdown(struct ev_loop *loop)
     ares_library_cleanup();
 }
 
-struct resolv_query *
+void
 resolv_start(const char *hostname, uint16_t port,
              void (*client_cb)(struct sockaddr *, void *),
              void (*free_cb)(void *), void *data)
 {
     struct resolv_query *query = ss_malloc(sizeof(struct resolv_query));
-
-    if (query == NULL) {
-        LOGE("failed to allocate memory for DNS query callback data.");
-        return NULL;
-    }
 
     memset(query, 0, sizeof(struct resolv_query));
 
@@ -224,8 +219,6 @@ resolv_start(const char *hostname, uint16_t port,
         ares_gethostbyname(default_channel, hostname, AF_INET6, dns_query_v6_cb, query);
         query->requests[1] = AF_INET6;
     }
-
-    return query;
 }
 
 /*

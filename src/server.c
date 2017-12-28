@@ -793,6 +793,8 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                 ev_io_start(EV_A_ & remote->send_ctx->io);
             }
         } else {
+            ev_io_stop(EV_A_ & server_recv_ctx->io);
+
             query_t *query = ss_malloc(sizeof(query_t));
             memset(query, 0, sizeof(query_t));
             query->server = server;
@@ -800,17 +802,7 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             snprintf(query->hostname, 256, "%s", host);
 
             server->stage = STAGE_RESOLVE;
-            struct resolv_query *q = resolv_start(host, port,
-                                                  resolv_cb, resolv_free_cb, query);
-            if (q == NULL) {
-                if (query != NULL)
-                    ss_free(query);
-                server->query = NULL;
-                close_and_free_server(EV_A_ server);
-                return;
-            }
-
-            ev_io_stop(EV_A_ & server_recv_ctx->io);
+            resolv_start(host, port, resolv_cb, resolv_free_cb, query);
         }
 
         return;
