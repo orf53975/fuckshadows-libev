@@ -44,8 +44,6 @@ typedef struct server_ctx {
 
 typedef struct server {
     int fd;
-    char *hostname;
-    size_t hostname_len;
     buffer_t *buf;
 
     cipher_ctx_t *e_ctx;
