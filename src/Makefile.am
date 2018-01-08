@@ -38,8 +38,10 @@ bloom_src = MurmurHash3.c \
             sbf.c
 
 sni_src = http.c \
-          tls.c \
-          rule.c
+          tls.c
+
+acl_src = rule.c \
+          acl.c
 
 crypto_src = crypto.c \
              aead.c \
@@ -51,11 +53,11 @@ fs_local_SOURCES = utils.c \
                    json.c \
                    udprelay.c \
                    cache.c \
-                   acl.c \
                    netutils.c \
                    local.c \
                    $(crypto_src) \
-                   $(sni_src)
+                   $(sni_src) \
+                   $(acl_src)
 
 fs_tunnel_SOURCES = utils.c \
                     jconf.c \
@@ -72,11 +74,11 @@ fs_server_SOURCES = utils.c \
                     json.c \
                     udprelay.c \
                     cache.c \
-                    acl.c \
                     resolv.c \
                     server.c \
                     $(crypto_src) \
-                    $(sni_src)
+                    $(sni_src) \
+                    ${acl_src}
 
 fs_manager_SOURCES = utils.c \
                      jconf.c \
@@ -119,8 +121,7 @@ fs_redir_SOURCES = utils.c \
                    cache.c \
                    udprelay.c \
                    redir.c \
-                   $(crypto_src) \
-                   $(sni_src)
+                   $(crypto_src)
 
 fs_redir_CFLAGS = $(AM_CFLAGS) -DMODULE_REDIR
 fs_redir_LDADD = $(FS_COMMON_LIBS)

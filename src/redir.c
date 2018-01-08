@@ -48,8 +48,6 @@
 #include "config.h"
 #endif
 
-#include "http.h"
-#include "tls.h"
 #include "netutils.h"
 #include "utils.h"
 #include "common.h"

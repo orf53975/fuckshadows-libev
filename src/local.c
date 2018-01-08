@@ -249,7 +249,6 @@ delayed_connect_cb(EV_P_ ev_timer *watcher, int revents)
     server_t *server = cork_container_of(watcher, server_t,
                                          delayed_connect_watcher);
 
-    server->stage = STAGE_WAIT;
     server_recv_cb(EV_A_ & server->recv_ctx->io, revents);
 }
 
@@ -262,13 +261,15 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
     buffer_t *buf;
     ssize_t r;
 
+    ev_timer_stop(EV_A_ & server->delayed_connect_watcher);
+
     if (remote == NULL) {
         buf = server->buf;
     } else {
         buf = remote->buf;
     }
 
-    if (server->stage != STAGE_WAIT) {
+    if (revents != EV_TIMER) {
         r = recv(server->fd, buf->data + buf->len, BUF_SIZE - buf->len, 0);
 
         if (r == 0) {
@@ -290,8 +291,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             }
         }
         buf->len += r;
-    } else {
-        server->stage = STAGE_STREAM;
     }
 
     while (1) {
@@ -302,8 +301,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                 close_and_free_server(EV_A_ server);
                 return;
             }
-
-            ev_timer_stop(EV_A_ & server->delayed_connect_watcher);
 
             // insert shadowsocks header
             if (!remote->direct) {
@@ -495,7 +492,9 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
 
             buf->len = 0;
             return;
-        } else if (server->stage == STAGE_HANDSHAKE || server->stage == STAGE_PARSE) {
+        } else if (server->stage == STAGE_HANDSHAKE ||
+                   server->stage == STAGE_PARSE ||
+                   server->stage == STAGE_SNI) {
             struct socks5_request *request = (struct socks5_request *)buf->data;
             size_t request_len             = sizeof(struct socks5_request);
             struct sockaddr_in sock_addr;
@@ -565,9 +564,9 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                     // Wait until client closes the connection
                     return;
                 }
-            }
 
-            server->stage = STAGE_PARSE;
+                server->stage = STAGE_PARSE;
+            }
 
             char host[257], ip[INET6_ADDRSTRLEN], port[16];
 
@@ -647,7 +646,9 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
                 else if (dst_port == tls_protocol->default_port)
                     ret = tls_protocol->parse_packet(buf->data + 3 + abuf->len,
                                                      buf->len - 3 - abuf->len, &hostname);
-                if (ret == -1 && buf->len < BUF_SIZE) {
+                if (ret == -1 && buf->len < BUF_SIZE && server->stage != STAGE_SNI) {
+                    server->stage = STAGE_SNI;
+                    ev_timer_start(EV_A_ & server->delayed_connect_watcher);
                     return;
                 } else if (ret > 0) {
                     sni_detected = 1;
@@ -676,12 +677,15 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             }
 
             if (acl) {
-                int host_match = acl_match_host(host);
                 int bypass     = 0;
                 int resolved   = 0;
                 struct sockaddr_storage storage;
                 memset(&storage, 0, sizeof(struct sockaddr_storage));
                 int err;
+
+                int host_match = 0;
+                if (sni_detected || atyp == 3)
+                    host_match = acl_match_host(host);
 
                 if (host_match > 0)
                     bypass = 1;                 // bypass hostnames in black list
@@ -779,7 +783,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
             remote->server = server;
 
             if (buf->len > 0 || sni_detected) {
-                server->stage = STAGE_STREAM;
                 continue;
             } else {
                 ev_timer_start(EV_A_ & server->delayed_connect_watcher);
