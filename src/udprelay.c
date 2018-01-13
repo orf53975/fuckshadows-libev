@@ -192,7 +192,7 @@ hash_key(const int af, const struct sockaddr_storage *addr)
     return key;
 }
 
-#if defined(MODULE_REDIR)
+#if defined(MODULE_REDIR) || defined(MODULE_REMOTE)
 static int
 construct_udprelay_header(const struct sockaddr_storage *in_addr,
                           char *addr_header)
@@ -724,19 +724,11 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
 #endif
 
     if (len == 0) {
-        LOGI("[udp] error in parse header");
-        // error in parse header
+        // error when parsing header
+        LOGE("[udp] error in parse header");
         goto CLEAN_UP;
     }
 
-    if (remote_ctx->addr_header_len != len
-        || memcmp(buf->data, remote_ctx->addr_header, len) != 0) {
-        LOGI("[udp] mismatched header");
-        goto CLEAN_UP;
-    }
-
-    // server may return using a different address type other than the type we
-    // have used during sending
 #if defined(MODULE_TUNNEL) || defined(MODULE_REDIR)
     // Construct packet
     buf->len -= len;
@@ -759,8 +751,9 @@ remote_recv_cb(EV_P_ ev_io *w, int revents)
 
     rx += buf->len;
 
-    char *addr_header   = remote_ctx->addr_header;
-    int addr_header_len = remote_ctx->addr_header_len;
+    // Reconstruct UDP response header
+    char addr_header[512];
+    int addr_header_len = construct_udprelay_header(&src_addr, addr_header);
 
     // Construct packet
     brealloc(buf, buf->len + addr_header_len, buf_size);
@@ -1164,8 +1157,6 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         remote_ctx                  = new_remote(remotefd, server_ctx);
         remote_ctx->src_addr        = src_addr;
         remote_ctx->af              = remote_addr->sa_family;
-        remote_ctx->addr_header_len = addr_header_len;
-        memcpy(remote_ctx->addr_header, addr_header, addr_header_len);
 
         // Add to conn cache
         cache_insert(conn_cache, key, HASH_KEY_LEN, (void *)remote_ctx);
@@ -1174,6 +1165,9 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
         ev_io_start(EV_A_ & remote_ctx->io);
         ev_timer_start(EV_A_ & remote_ctx->watcher);
     }
+
+    remote_ctx->addr_header_len = addr_header_len;
+    memcpy(remote_ctx->addr_header, addr_header, addr_header_len);
 
     if (offset > 0) {
         buf->len -= offset;
@@ -1210,16 +1204,8 @@ server_recv_cb(EV_P_ ev_io *w, int revents)
 
     if (remote_ctx != NULL) {
         cache_hit = 1;
-        // detect destination mismatch
-        if (remote_ctx->addr_header_len != addr_header_len
-            || memcmp(addr_header, remote_ctx->addr_header, addr_header_len) != 0) {
-            remote_ctx->addr_header_len = addr_header_len;
-            memcpy(remote_ctx->addr_header, addr_header, addr_header_len);
-            if (dst_addr.ss_family != AF_INET && dst_addr.ss_family != AF_INET6) {
-                need_query = 1;
-            }
-        } else {
-            memcpy(&dst_addr, &remote_ctx->dst_addr, sizeof(struct sockaddr_storage));
+        if (dst_addr.ss_family != AF_INET && dst_addr.ss_family != AF_INET6) {
+            need_query = 1;
         }
     } else {
         if (dst_addr.ss_family == AF_INET || dst_addr.ss_family == AF_INET6) {
