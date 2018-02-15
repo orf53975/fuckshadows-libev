@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <limits.h>
 
 #define PORTSTRLEN 16
 #define SS_ADDRSTRLEN (INET6_ADDRSTRLEN + PORTSTRLEN + 1)
@@ -176,5 +177,7 @@ void *ss_realloc(void *ptr, size_t new_size);
         free(ptr);       \
         ptr = NULL;      \
     } while (0)
+
+char *get_default_conf(void);
 
 #endif // _UTILS_H

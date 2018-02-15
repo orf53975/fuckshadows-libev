@@ -129,14 +129,6 @@ send_traffic_stat(uint64_t tx, uint64_t rx)
         return -1;
     }
 
-    char ret = 0;
-
-    if (recv(sock, &ret, 1, 0) == -1) {
-        ERROR("[android] recv");
-        close(sock);
-        return -1;
-    }
-
     close(sock);
-    return ret;
+    return 0;
 }

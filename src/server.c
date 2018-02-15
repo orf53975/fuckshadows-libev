@@ -100,6 +100,7 @@ static void resolv_cb(struct sockaddr *addr, void *data);
 static void resolv_free_cb(void *data);
 
 int verbose = 0;
+char *local_addr = NULL;
 
 static crypto_t *crypto;
 
@@ -115,11 +116,10 @@ static int nofile = 0;
 static int remote_conn = 0;
 static int server_conn = 0;
 
-static char *bind_address    = NULL;
-static char *server_port     = NULL;
-static char *manager_address = NULL;
-uint64_t tx                  = 0;
-uint64_t rx                  = 0;
+static char *remote_port  = NULL;
+static char *manager_addr = NULL;
+uint64_t tx               = 0;
+uint64_t rx               = 0;
 ev_timer stat_update_watcher;
 ev_timer block_list_watcher;
 
@@ -141,11 +141,11 @@ stat_update_cb(EV_P_ ev_timer *watcher, int revents)
         LOGI("update traffic stat: tx: %" PRIu64 " rx: %" PRIu64 "", tx, rx);
     }
 
-    snprintf(resp, BUF_SIZE, "stat: {\"%s\":%" PRIu64 "}", server_port, tx + rx);
+    snprintf(resp, BUF_SIZE, "stat: {\"%s\":%" PRIu64 "}", remote_port, tx + rx);
     msgLen = strlen(resp) + 1;
 
     ss_addr_t ip_addr = { .host = NULL, .port = NULL };
-    parse_addr(manager_address, &ip_addr);
+    parse_addr(manager_addr, &ip_addr);
 
     if (ip_addr.host == NULL || ip_addr.port == NULL) {
         sfd = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -156,7 +156,7 @@ stat_update_cb(EV_P_ ev_timer *watcher, int revents)
 
         memset(&claddr, 0, sizeof(struct sockaddr_un));
         claddr.sun_family = AF_UNIX;
-        snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/shadowsocks.%s", server_port);
+        snprintf(claddr.sun_path, sizeof(claddr.sun_path), "/tmp/shadowsocks.%s", remote_port);
 
         unlink(claddr.sun_path);
 
@@ -168,7 +168,7 @@ stat_update_cb(EV_P_ ev_timer *watcher, int revents)
 
         memset(&svaddr, 0, sizeof(struct sockaddr_un));
         svaddr.sun_family = AF_UNIX;
-        strncpy(svaddr.sun_path, manager_address, sizeof(svaddr.sun_path) - 1);
+        strncpy(svaddr.sun_path, manager_addr, sizeof(svaddr.sun_path) - 1);
 
         if (sendto(sfd, resp, strlen(resp) + 1, 0, (struct sockaddr *)&svaddr,
                    sizeof(struct sockaddr_un)) != msgLen) {
@@ -468,8 +468,8 @@ connect_to_remote(EV_P_ struct addrinfo *res,
     if (setnonblocking(sockfd) == -1)
         ERROR("setnonblocking");
 
-    if (bind_address != NULL)
-        if (bind_to_address(sockfd, bind_address) == -1) {
+    if (local_addr != NULL)
+        if (bind_to_address(sockfd, local_addr) == -1) {
             ERROR("bind_to_address");
             close(sockfd);
             return NULL;
@@ -1363,6 +1363,8 @@ main(int argc, char **argv)
     char *conf_path = NULL;
     char *iface     = NULL;
 
+    char *server_port = NULL;
+
     int server_num = 0;
     const char *server_host[MAX_REMOTE_NUM];
 
@@ -1402,7 +1404,7 @@ main(int argc, char **argv)
             acl = !init_acl(optarg);
             break;
         case GETOPT_VAL_MANAGER_ADDRESS:
-            manager_address = optarg;
+            manager_addr = optarg;
             break;
         case GETOPT_VAL_MTU:
             mtu = atoi(optarg);
@@ -1418,7 +1420,7 @@ main(int argc, char **argv)
             }
             break;
         case 'b':
-            bind_address = optarg;
+            local_addr = optarg;
             break;
         case 'p':
             server_port = optarg;
@@ -1485,7 +1487,7 @@ main(int argc, char **argv)
 
     if (argc == 1) {
         if (conf_path == NULL) {
-            conf_path = DEFAULT_CONF_PATH;
+            conf_path = get_default_conf();
         }
     }
 
@@ -1525,6 +1527,9 @@ main(int argc, char **argv)
             fast_open = conf->fast_open;
         }
 #endif
+        if (local_addr == NULL) {
+            local_addr = conf->local_addr;
+        }
 #ifdef HAVE_SETRLIMIT
         if (nofile == 0) {
             nofile = conf->nofile;
@@ -1546,6 +1551,8 @@ main(int argc, char **argv)
         usage();
         exit(EXIT_FAILURE);
     }
+
+    remote_port = server_port;
 
     if (method == NULL) {
         method = "rc4-md5";
@@ -1671,7 +1678,7 @@ main(int argc, char **argv)
         }
     }
 
-    if (manager_address != NULL) {
+    if (manager_addr != NULL) {
         ev_timer_init(&stat_update_watcher, stat_update_cb, UPDATE_INTERVAL, UPDATE_INTERVAL);
         ev_timer_start(EV_DEFAULT, &stat_update_watcher);
     }
@@ -1711,7 +1718,7 @@ main(int argc, char **argv)
     // Free block list
     free_block_list();
 
-    if (manager_address != NULL) {
+    if (manager_addr != NULL) {
         ev_timer_stop(EV_DEFAULT, &stat_update_watcher);
     }
 
