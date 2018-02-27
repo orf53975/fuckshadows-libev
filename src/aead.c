@@ -51,12 +51,8 @@
 #define CHACHA20POLY1305IETF    4
 #define XCHACHA20POLY1305IETF   5
 
-#define FS_GARBAGE_LEN               1
-#define FS_MAX_GARBAGE               (255 + FS_GARBAGE_LEN)
-
-#define CHUNK_SIZE_LEN               2
-#define CHUNK_SIZE_MASK              0x3FFF
-#define CHUNK_MAX_SIZE_WITH_GARBAGE   (CHUNK_SIZE_MASK - FS_MAX_GARBAGE)
+#define CHUNK_SIZE_LEN          2
+#define CHUNK_SIZE_MASK         0x3FFF
 
 /*
  * Designed by wongsyrone with help from breakwa11 and Noisyfox
@@ -619,35 +615,6 @@ aead_encrypt(buffer_t *plaintext, cipher_ctx_t *cipher_ctx, size_t capacity)
         return CRYPTO_OK;
     }
 
-    // prepend garbage data to plain text
-    size_t plen = plaintext->len;
-    uint8_t garbageLen;
-    if (plen > CHUNK_MAX_SIZE_WITH_GARBAGE) {
-        LOGE("plen is bigger than CHUNK_MAX_SIZE_WITH_GARBAGE, no space for garbage to construct max chunk");
-        return CRYPTO_ERROR;
-    }
-    if (plen > 1300) {
-        garbageLen = 0;
-    } else if (plen > 1200) {
-        rand_bytes(&garbageLen, sizeof garbageLen);
-        garbageLen &= 0x1F;
-    } else if (plen > 900) {
-        rand_bytes(&garbageLen, sizeof garbageLen);
-        garbageLen &= 0x2F;
-    } else if (plen > 400) {
-        rand_bytes(&garbageLen, sizeof garbageLen);
-        garbageLen &= 0x3F;
-    } else {
-        rand_bytes(&garbageLen, sizeof garbageLen);
-    }
-    static buffer_t tmp2 = { 0, 0, 0, NULL };
-    buffer_t *garbage    = &tmp2;
-    brealloc(garbage, garbageLen + FS_GARBAGE_LEN, capacity);
-    garbage->len = garbageLen + FS_GARBAGE_LEN;
-    memcpy((uint8_t *)garbage->data, &garbageLen, FS_GARBAGE_LEN);
-    rand_bytes((uint8_t *)garbage->data + FS_GARBAGE_LEN, garbageLen);
-    bprepend(plaintext, garbage, capacity);
-
     static buffer_t tmp = { 0, 0, 0, NULL };
     buffer_t *ciphertext;
 
@@ -735,11 +702,6 @@ aead_chunk_decrypt(cipher_ctx_t *ctx, uint8_t *p, uint8_t *c, uint8_t *n,
     if (err)
         return CRYPTO_ERROR;
     assert(*plen == mlen);
-
-    // handle garbage
-    uint8_t garbageLen = *(uint8_t *)p;
-    memmove(p, p + FS_GARBAGE_LEN + garbageLen, mlen - FS_GARBAGE_LEN - garbageLen);
-    *plen -= (FS_GARBAGE_LEN + garbageLen);
 
     sodium_increment(n, nlen);
 
